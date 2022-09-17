@@ -6,6 +6,7 @@ You need
 - Python >= 3.7
 - [HeadlessForge jar built](https://github.com/thefightagainstmalware/HeadlessForge)
 - Proper .mitmproxy folder
+- Requirements.txt dependencies
 
 To get a .mitmproxy folder, run [mitmproxy](https://mitmproxy.org) once and copy the .mitmproxy into the mitmproxy directory<br>
 Copy the mitmproxy-ca-cert.pem file from the .mitmproxy to the headlessforge directory<br>

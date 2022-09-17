@@ -10,4 +10,6 @@ You need
 
 To get a .mitmproxy folder, run [mitmproxy](https://mitmproxy.org) once and copy the .mitmproxy into the mitmproxy directory<br>
 Copy the mitmproxy-ca-cert.pem file from the .mitmproxy to the headlessforge directory<br>
-Add your compiled HeadlessForge jar into the headlessforge directory also
+Add your compiled HeadlessForge jar into the headlessforge directory also<br>
+Create a network called `mitm`<br>
+If you get problems with DNS not resolving within a headlessforge container, change the ip in headlessforge/main.sh to the default gateway of the `mitm` network

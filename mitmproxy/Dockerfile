@@ -10,7 +10,7 @@ apt-get install -y --no-install-recommends \
   
 COPY pip.conf /etc/pip.conf
 # hackish way of ensuring that the piwheels pip.conf gets removed if we aren't on a pi
-RUN uname -a | grep -v armv7l && rm /etc/pip.conf || echo "pi"
+RUN uname -a | grep -v armv && rm /etc/pip.conf || echo "pi"
 
 USER mitmproxy
 COPY .mitmproxy /home/mitmproxy/.mitmproxy

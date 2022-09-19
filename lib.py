@@ -1,5 +1,6 @@
 import tarfile, base64, os, asyncio, aiodocker, tempfile, aiohttp
 
+
 async def get_file(container: aiodocker.docker.DockerContainer, path: str):
     file_json = await container.get_archive(path)
     text = file_json.extractfile("mitmproxyout")
@@ -102,9 +103,7 @@ async def run_headlessforge(jarfile):
         await headlessforge.kill()
     await mitmproxy.kill()
     connector = aiohttp.UnixConnector("/var/run/docker.sock")
-    async with aiohttp.ClientSession(
-        connector=connector
-    ) as session:
+    async with aiohttp.ClientSession(connector=connector) as session:
         async with session.request(
             method="GET",
             url="unix://localhost/v1.41/containers/" + headlessforge.id + "/logs",

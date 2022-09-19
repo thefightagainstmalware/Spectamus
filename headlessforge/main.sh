@@ -8,5 +8,6 @@ keytool -trustcacerts -noprompt -keystore "$JAVA_HOME/jre/lib/security/cacerts" 
 while [ ! -f /home/runner/toanalyze.jar ]; do
     sleep 0.1 # polling yay
 done
-
+chmod 777 /home/runner/toanalyze.jar
+chown runner /home/runner/toanalyze.jar
 su runner -c "$JAVA_HOME/bin/java -jar /home/runner/headlessforge.jar /home/runner/toanalyze.jar 2>&1"

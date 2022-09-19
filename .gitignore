@@ -9,7 +9,9 @@ __pycache__/
 *.db
 # HeadlessForge 
 headlessforge.jar
-
+# mitmproxy certs
+.mitmproxy 
+mitmproxy-ca-cert.pem
 # Distribution / packaging
 .Python
 build/

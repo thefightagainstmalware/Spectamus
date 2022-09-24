@@ -10,4 +10,4 @@ while [ ! -f /home/runner/toanalyze.jar ]; do
 done
 chmod 777 /home/runner/toanalyze.jar
 chown runner /home/runner/toanalyze.jar
-su runner -c "$JAVA_HOME/bin/java -jar /home/runner/headlessforge.jar /home/runner/toanalyze.jar 2>&1"
+su runner -c "$JAVA_HOME/bin/java -noverify -jar /home/runner/headlessforge.jar /home/runner/toanalyze.jar 2>&1"

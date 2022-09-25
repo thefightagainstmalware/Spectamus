@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
-import os, aiohttp, asyncio, discord, typing, lib, tempfile, io, aiosqlite, vpn
+import os, aiohttp, asyncio, discord, lib, tempfile, io, aiosqlite, vpn
 
 
-async def require_vpn(asn) -> "typing.Union[typing.NoReturn, bool]":
+async def require_vpn(asn) -> None:
     async with aiohttp.ClientSession() as session:
         async with session.get("https://ipinfo.io/json") as resp:
             data = await resp.json()
@@ -16,7 +16,10 @@ def bytes_to_file(data: bytes, filename: str):
 
 load_dotenv()
 
+vpn_required = False
+
 if os.getenv("VPN_ASN") is not None:
+    vpn_required = True
     loop = asyncio.get_event_loop()
     loop.run_until_complete(require_vpn(os.getenv("VPN_ASN")))
 
@@ -41,9 +44,8 @@ async def on_ready():
 @client.slash_command(debug_guilds=[910733698452815912])
 async def run_headlessforge(ctx: discord.ApplicationContext, file: discord.Attachment):
     """Runs HeadlessForge using Spectamus"""
-    if not await require_vpn(os.getenv("VPN_ASN")):
-        await ctx.respond("This bot isn't connected to the VPN, but it should be")
-        return
+    if vpn_required:
+        await require_vpn(os.getenv("VPN_ASN"))
     db = await aiosqlite.connect("bot.db")
     banned = await (
         await db.execute("SELECT * FROM bans WHERE id=?", (ctx.author.id,))

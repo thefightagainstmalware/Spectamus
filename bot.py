@@ -1,10 +1,5 @@
 from dotenv import load_dotenv
-<<<<<<< Updated upstream
-import os, aiohttp, asyncio, discord, lib, tempfile, io, aiosqlite, vpn
-=======
 import os, aiohttp, asyncio, discord, typing, lib, tempfile, io, aiosqlite
-import logging
->>>>>>> Stashed changes
 
 logging.basicConfig(level=logging.DEBUG)
 

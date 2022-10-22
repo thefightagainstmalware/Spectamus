@@ -1,5 +1,4 @@
 # Spectamus
-![image](https://snowy-wood-ed38.thefightagainstmalware.workers.dev)<br>
 Spectamus (latin, roughly: we are watching) runs suspicious Minecraft mods with HeadlessForge.<br>
 An instance is running with id: 1020734729554759750 and [this invite url](https://discord.com/api/oauth2/authorize?client_id=1020734729554759750&permissions=8&scope=bot%20applications.commands)
 ## Running locally

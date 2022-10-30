@@ -2,11 +2,13 @@
 """
 This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 """
-import tarfile, json, subprocess, random, os, os.path, time, platform, uuid, requests, base64, shutil, functools
+import json, subprocess, random, os, os.path, time, platform, uuid, base64
 
 """
 [Get string of all libraries to add to java classpath]
 """
+
+
 def get_sep():
     return ";" if platform.system() == "Windows" else ":"
 
@@ -25,6 +27,7 @@ def generate_token():
         ]
     )
     return token
+
 
 os.makedirs("./libraries", exist_ok=True)
 os.makedirs("./natives", exist_ok=True)

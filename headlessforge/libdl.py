@@ -2,7 +2,7 @@
 """
 This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 """
-import tarfile, json, subprocess, random, os, os.path, time, platform, uuid, requests, base64, shutil, functools
+import tarfile, json, os, os.path, platform, requests, shutil, functools
 
 
 def save_to_file(url: str, folder="libraries") -> str:
@@ -115,6 +115,7 @@ def get_classpath(lib):
             print(ke)
 
     return cp
+
 
 def extract_natives():
     if os.path.exists(f"natives-{platform.machine()}.tar"):

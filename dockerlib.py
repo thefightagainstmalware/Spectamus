@@ -1,8 +1,10 @@
 import aiodocker, tempfile, aiohttp, typing, asyncio, struct
+from typing import IO
+
 
 async def get_archive(
     container: aiodocker.docker.DockerContainer, path: str
-) -> tempfile.TemporaryFile:
+) -> "IO[bytes]":
     """get a file from a container, streaming it so the memory doesn't run out
 
     Args:
@@ -24,12 +26,14 @@ async def get_archive(
     file.seek(0)
     return file
 
+
 async def unpack(resp: aiohttp.ClientResponse, temp_file: typing.IO[bytes]):
     while True:
         try:
-            await resp.content.readexactly(4) # discard the indicator, and the 3 null bytes, we don't care about them
+            await resp.content.readexactly(
+                4
+            )  # discard the indicator, and the 3 null bytes, we don't care about them
             size = struct.unpack(">I", await resp.content.readexactly(4))[0]
             temp_file.write(await resp.content.readexactly(size))
         except asyncio.IncompleteReadError:
             break
-    

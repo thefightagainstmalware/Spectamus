@@ -1,5 +1,5 @@
-import tarfile, base64, os, asyncio, aiodocker, tempfile, aiohttp, dockerlib, traceback, io
-from typing import Tuple, IO
+import tarfile, base64, os, asyncio, aiodocker, tempfile, aiohttp, dockerlib, traceback, tempfile
+from typing import Tuple, Union, IO
 from interfaces import NamedFile
 
 
@@ -53,7 +53,9 @@ async def upload(filepath: str) -> str:
     return out.decode("utf-8")
 
 
-async def run_headlessforge(jarfile: str) -> "Tuple[str, str, str]":
+async def run_headlessforge(
+    jarfile: str,
+) -> "Tuple[Union[IO[bytes], str], IO[bytes], IO[bytes]]":
     aiodocker_client = aiodocker.Docker(
         api_version="v1.41"
     )  # ensure that the api is the same as the one when this program was written
@@ -88,7 +90,7 @@ async def run_headlessforge(jarfile: str) -> "Tuple[str, str, str]":
         },
         name=name,
     )
-    await asyncio.sleep(5) # oh god this hack has got to be the worst
+    await asyncio.sleep(5)  # oh god this hack has got to be the worst
     headlessforge = await aiodocker_client.containers.run(
         {
             "Hostname": None,
@@ -141,24 +143,34 @@ async def run_headlessforge(jarfile: str) -> "Tuple[str, str, str]":
             url="unix://localhost/v1.41/containers/" + headlessforge.id + "/logs",
             params={"stdout": "1", "stderr": "1"},
         ) as resp:
-            h_log_file = io.BytesIO()
+            h_log_file = tempfile.TemporaryFile()
             await dockerlib.unpack(resp, h_log_file)
+            h_log_file.seek(0)
         async with session.request(
             method="GET",
             url="unix://localhost/v1.41/containers/" + mitmproxy.id + "/logs",
             params={"stdout": "1", "stderr": "1"},
         ) as resp:
-            m_log_file = io.BytesIO()
+            m_log_file = tempfile.TemporaryFile()
             await dockerlib.unpack(resp, m_log_file)
+            m_log_file.seek(0)
     await connector.close()
 
     try:
-        file = await get_file(mitmproxy, "/home/mitmproxy/mitmproxyout") # prevent python from garbage collecting it and then the file goes poof
-        m_out = await upload(
-            (file).name
-        )
+        file = await get_file(
+            mitmproxy, "/home/mitmproxy/mitmproxyout"
+        )  # prevent python from garbage collecting it and then the file goes poof
+        if os.stat(file.name).st_size > 8388608:
+            m_out = await upload((file).name)
+        else:
+            m_out = file
+            m_out.seek(0)
     except Exception as e:
         m_out = "Something went wrong..."
         traceback.print_exception(type(e), e, e.__traceback__)
 
-    return m_out, h_log_file.getvalue().decode("utf-8"), m_log_file.getvalue().decode("utf-8")
+    return (
+        m_out,
+        h_log_file,
+        m_log_file,
+    )

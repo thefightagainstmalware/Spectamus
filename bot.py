@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os, aiohttp, asyncio, discord, lib, tempfile, io, aiosqlite, importlib
 from typing import IO
 
+
 async def require_vpn(asn) -> None:
     async with aiohttp.ClientSession() as session:
         async with session.get("https://ipinfo.io/json") as resp:
@@ -10,8 +11,12 @@ async def require_vpn(asn) -> None:
                 os._exit(1)
 
 
-def bytes_to_file(data: str, filename: str):
+def str_to_discord_file(data: str, filename: str):
     return discord.File(io.StringIO(data), filename=filename)
+
+
+def bytes_to_discord_file(data: bytes, filename: str):
+    return discord.File(io.BytesIO(data), filename=filename)
 
 
 load_dotenv()
@@ -40,6 +45,7 @@ async def on_ready():
     await con.commit()
     await con.close()
 
+
 @client.slash_command(debug_guilds=[910733698452815912])
 async def reload(ctx: discord.ApplicationContext):
     if not await client.is_owner(ctx.author):
@@ -47,6 +53,7 @@ async def reload(ctx: discord.ApplicationContext):
         return
     importlib.reload(lib)
     await ctx.respond("Reloaded lib.py")
+
 
 @client.slash_command(debug_guilds=[910733698452815912])
 async def run_headlessforge(ctx: discord.ApplicationContext, file: discord.Attachment):
@@ -75,6 +82,10 @@ async def run_headlessforge(ctx: discord.ApplicationContext, file: discord.Attac
         + hex(int(primary_key))[2:]
     )
     mitmproxy, h_logs, m_logs = await lib.run_headlessforge(fp.name)
+    if not isinstance(mitmproxy, str):
+        mitmproxy = mitmproxy.read()
+
+    h_logs, m_logs = h_logs.read().decode("utf-8"), m_logs.read().decode("utf-8")
     await db.execute(
         "INSERT INTO results (mitmproxy_file, mitmproxy_logs, headlessforge_logs, user_id) VALUES (?, ?, ?, ?)",
         (mitmproxy, h_logs, m_logs, ctx.author.id),
@@ -83,14 +94,25 @@ async def run_headlessforge(ctx: discord.ApplicationContext, file: discord.Attac
     await db.close()
     if os.getenv("LOGGING_CHANNEL_ID"):
         fp.seek(0)
-        await client.get_channel(int(os.getenv("LOGGING_CHANNEL_ID"))).send(
-            f"HeadlessForge run by {ctx.author.mention}, id: {ctx.author.id}, mitmproxy output {mitmproxy}",
-            files=[
-                discord.File(fp.name, "toanalyze.jar"),
-                bytes_to_file(m_logs, "mitmproxy.log"),
-                bytes_to_file(h_logs, "headlessforge.log"),
-            ],
-        )
+        if isinstance(mitmproxy, str):
+            await client.get_channel(int(os.getenv("LOGGING_CHANNEL_ID"))).send(
+                f"HeadlessForge run by {ctx.author.mention}, id: {ctx.author.id}, mitmproxy output {mitmproxy}",
+                files=[
+                    discord.File(fp.name, "toanalyze.jar"),
+                    str_to_discord_file(m_logs, "mitmproxy.log"),
+                    str_to_discord_file(h_logs, "headlessforge.log"),
+                ],
+            )
+        else:
+            await client.get_channel(int(os.getenv("LOGGING_CHANNEL_ID"))).send(
+                f"HeadlessForge run by {ctx.author.mention}, id: {ctx.author.id}",
+                files=[
+                    discord.File(fp.name, "toanalyze.jar"),
+                    bytes_to_discord_file(mitmproxy, "mitmproxy.out"),
+                    str_to_discord_file(m_logs, "mitmproxy.log"),
+                    str_to_discord_file(h_logs, "headlessforge.log"),
+                ],
+            )
 
 
 @client.slash_command(debug_guilds=[910733698452815912])
@@ -108,13 +130,23 @@ async def get_result(ctx: discord.ApplicationContext, key: str):
         await ctx.respond("You are not the owner of this result! ")
         return
     await db.close()
-    await ctx.respond(
-        f"HeadlessForge results: mitmproxy output: {mitmproxy_file}",
-        files=[
-            bytes_to_file(mitmproxy_logs, "mitmproxy.log"),
-            bytes_to_file(headlessforge_logs, "headlessforge.log"),
-        ],
-    )
+    if isinstance(mitmproxy_file, str):
+        await ctx.respond(
+            f"HeadlessForge results: mitmproxy output: {mitmproxy_file}",
+            files=[
+                str_to_discord_file(mitmproxy_logs, "mitmproxy.log"),
+                str_to_discord_file(headlessforge_logs, "headlessforge.log"),
+            ],
+        )
+    else:
+        await ctx.respond(
+            f"HeadlessForge results:",
+            files=[
+                bytes_to_discord_file(mitmproxy_file, "mitmproxy.out"),
+                str_to_discord_file(mitmproxy_logs, "mitmproxy.log"),
+                str_to_discord_file(headlessforge_logs, "headlessforge.log"),
+            ],
+        )
 
 
 @client.slash_command(debug_guilds=[910733698452815912])

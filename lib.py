@@ -1,6 +1,9 @@
+from __future__ import annotations 
 import tarfile, base64, os, asyncio, aiodocker, tempfile, aiohttp, dockerlib, traceback, tempfile
-from typing import Tuple, Union, IO
-from interfaces import NamedFile
+from typing import Tuple, Union, IO, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from interfaces import NamedFile
 
 
 async def get_file(container: aiodocker.docker.DockerContainer, path: str) -> NamedFile:

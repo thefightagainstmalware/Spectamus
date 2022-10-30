@@ -1,6 +1,6 @@
+from __future__ import annotations 
 import aiodocker, tempfile, aiohttp, typing, asyncio, struct
 from typing import IO
-
 
 async def get_archive(
     container: aiodocker.docker.DockerContainer, path: str

@@ -1,7 +1,6 @@
+from __future__ import annotations 
 from dotenv import load_dotenv
 import os, aiohttp, asyncio, discord, lib, tempfile, io, aiosqlite, importlib
-from typing import IO
-
 
 async def require_vpn(asn) -> None:
     async with aiohttp.ClientSession() as session:

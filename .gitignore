@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 #private vpn stuff
 vpn.py
+# minecraft json files
+1.8.9.json
 # C extensions
 *.so
 # Databases

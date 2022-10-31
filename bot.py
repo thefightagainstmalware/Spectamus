@@ -1,4 +1,3 @@
-from __future__ import annotations 
 from dotenv import load_dotenv
 import os, aiohttp, asyncio, discord, lib, tempfile, io, aiosqlite, importlib
 
@@ -41,6 +40,9 @@ async def on_ready():
     await con.execute(
         "CREATE TABLE IF NOT EXISTS bans (id INTEGER PRIMARY KEY, reason TEXT)"
     )
+    await con.execute(
+        "CREATE TABLE IF NOT EXISTS primaryKeys (key INTEGER PRIMARY KEY)"
+    )
     await con.commit()
     await con.close()
 
@@ -72,10 +74,12 @@ async def run_headlessforge(ctx: discord.ApplicationContext, file: discord.Attac
         return
     fp = tempfile.NamedTemporaryFile()
     await file.save(fp.name)
-    row = await db.execute("SELECT max(id) FROM results")
+    row = await db.execute("SELECT max(key) FROM primaryKeys")
     primary_key = (await row.fetchone())[0]
     if primary_key is None:
-        primary_key = 1
+        primary_key = 0
+    await db.execute("INSERT INTO primaryKeys VALUES (?)", (primary_key + 1,))
+    await db.commit()
     await ctx.respond(
         "HeadlessForge is running! Check back soon (max 5 minutes) with key: "
         + hex(int(primary_key))[2:]
@@ -86,8 +90,8 @@ async def run_headlessforge(ctx: discord.ApplicationContext, file: discord.Attac
 
     h_logs, m_logs = h_logs.read().decode("utf-8"), m_logs.read().decode("utf-8")
     await db.execute(
-        "INSERT INTO results (mitmproxy_file, mitmproxy_logs, headlessforge_logs, user_id) VALUES (?, ?, ?, ?)",
-        (mitmproxy, h_logs, m_logs, ctx.author.id),
+        "INSERT INTO results (id, mitmproxy_file, mitmproxy_logs, headlessforge_logs, user_id) VALUES (?, ?, ?, ?, ?)",
+        (primary_key, mitmproxy, h_logs, m_logs, ctx.author.id),
     )
     await db.commit()
     await db.close()
@@ -177,3 +181,4 @@ async def unban(ctx: discord.ApplicationContext, user: discord.User):
 
 
 client.run(os.getenv("BOT_TOKEN"))
+

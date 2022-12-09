@@ -1,13 +1,47 @@
 from dotenv import load_dotenv
-import os, aiohttp, asyncio, discord, lib, tempfile, io, aiosqlite, importlib
+import os, aiohttp, asyncio, discord, lib, tempfile, io, aiosqlite, importlib, ipwhois, interfaces, yarl, socket, ipsafe
+from discord.ext import commands
+from typing import Optional
 
-async def require_vpn(asn) -> None:
+class FileTooBig(Exception):
+    pass
+
+async def require_vpn(asn: str) -> None:
+    """This function is NOT async safe and it IS blocking. Care must be taken when used to not block the main thread"""
     async with aiohttp.ClientSession() as session:
-        async with session.get("https://ipinfo.io/json") as resp:
-            data = await resp.json()
-            if data["org"].split(" ")[0] != asn:
-                os._exit(1)
+        async with session.get("https://checkip.amazonaws.com") as resp:
+            ip = (await resp.text()).strip()
+            ourasn = ipwhois.IPWhois(ip).lookup_rdap()["asn"]
+            if ourasn != asn.strip("AS"):
+                print(f"VPN check failed, Required: {asn}, Actual: {ourasn}")
+                exit(1)
 
+async def download(path: str, url: str):
+    chunks_written = 0
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            with open(path, 'wb') as fd:
+                async for chunk in resp.content.iter_chunked(16 * 1024):
+                    if chunks_written == 1920:
+                        raise FileTooBig()
+                    fd.write(chunk)
+                    chunks_written += 1
+                    
+def validate_url(url: str) -> bool:
+    url_obj = yarl.URL(url) # use yarl because aiohttp uses yarl, make sure aiohttp and us parse the url the same way
+                            # which prevents an attacks where we think the url is safe but aiohttp makes a request to an unsafe destination
+    addrinfo = socket.getaddrinfo(url_obj.host, url_obj.port)
+    for address in addrinfo:
+        if not ipsafe.check_ip(address[4][0]):
+            return False
+    return True
+        
+
+async def check_owner(ctx: interfaces.FailMessagedContext):
+    is_owner = await client.is_owner(ctx.author)
+    if not is_owner:
+        ctx.fail_message = "You are not the owner of this bot!"
+    return is_owner
 
 def str_to_discord_file(data: str, filename: str):
     return discord.File(io.StringIO(data), filename=filename)
@@ -19,10 +53,7 @@ def bytes_to_discord_file(data: bytes, filename: str):
 
 load_dotenv()
 
-vpn_required = False
-
 if os.getenv("VPN_ASN") is not None:
-    vpn_required = True
     loop = asyncio.get_event_loop()
     loop.run_until_complete(require_vpn(os.getenv("VPN_ASN")))
 
@@ -30,6 +61,27 @@ if os.getenv("VPN_ASN") is not None:
 client = discord.Bot(intents=discord.Intents.default())
 
 
+@client.check_once
+async def check_banned(ctx: discord.ApplicationContext):
+    db = await aiosqlite.connect("bot.db")
+    banned = await (
+        await db.execute("SELECT * FROM bans WHERE id=?", (ctx.author.id,))
+    ).fetchone()
+    if banned is not None:
+        ctx.fail_message = f"You are banned from using this bot. Reason: {banned[1]}"
+    return banned is None
+
+@client.event
+async def on_application_command_error(
+    ctx: interfaces.FailMessagedContext, error: discord.DiscordException
+):
+    if isinstance(error, discord.errors.CheckFailure):
+        await ctx.respond(
+            ctx.fail_message
+        )
+        return
+    raise error
+  
 @client.event
 async def on_ready():
     print("Logged in as {0.user}".format(client))
@@ -48,32 +100,38 @@ async def on_ready():
 
 
 @client.slash_command(debug_guilds=[910733698452815912])
+@commands.check(check_owner)
 async def reload(ctx: discord.ApplicationContext):
-    if not await client.is_owner(ctx.author):
-        await ctx.respond("You are not the owner of this bot!")
-        return
     importlib.reload(lib)
     await ctx.respond("Reloaded lib.py")
 
 
 @client.slash_command(debug_guilds=[910733698452815912])
-async def run_headlessforge(ctx: discord.ApplicationContext, file: discord.Attachment):
+async def run_headlessforge(ctx: discord.ApplicationContext, file: Optional[discord.Attachment], url: Optional[str]):
     """Runs HeadlessForge using Spectamus"""
     await ctx.defer()
     db = await aiosqlite.connect("bot.db")
-    banned = await (
-        await db.execute("SELECT * FROM bans WHERE id=?", (ctx.author.id,))
-    ).fetchone()
-    if banned is not None:
-        await ctx.respond(
-            "You are banned from using this bot. Reason: {}".format(banned[1])
-        )
-        return
-    if file.size > 1024 * 1024 * 30:
-        await ctx.respond("C'mon, even NEU is not that big")
-        return
+    
     fp = tempfile.NamedTemporaryFile()
-    await file.save(fp.name)
+    if file != None:
+        if file.size > 1024 * 1024 * 30:
+            await ctx.respond("C'mon, even NEU is not that big")
+            return
+        await file.save(fp.name)
+    elif url != None:
+        loop = asyncio.get_event_loop()
+        safe = await loop.run_in_executor(None, validate_url, url)
+        if not safe:
+            await ctx.respond("The URL seems to be malicious...\nThis detection can be wrong. If so, contact the developers")
+            return
+        try:
+            await download(fp.name, url)
+        except FileTooBig:
+            await ctx.respond("C'mon, even NEU is not that big")
+            return
+    else:
+        await ctx.respond("You must send me a file or a URL!")
+        return
     row = await db.execute("SELECT max(key) FROM primaryKeys")
     primary_key = (await row.fetchone())[0]
     if primary_key is None:
@@ -117,7 +175,6 @@ async def run_headlessforge(ctx: discord.ApplicationContext, file: discord.Attac
                 ],
             )
 
-
 @client.slash_command(debug_guilds=[910733698452815912])
 async def get_result(ctx: discord.ApplicationContext, key: str):
     """Get the result of a HeadlessForge run"""
@@ -153,12 +210,9 @@ async def get_result(ctx: discord.ApplicationContext, key: str):
 
 
 @client.slash_command(debug_guilds=[910733698452815912])
+@commands.check(check_owner)
 async def ban(ctx: discord.ApplicationContext, user: discord.User, reason: str):
     """Cheaters get banned"""
-    if not await client.is_owner(ctx.author):
-        print(client.owner_ids)
-        await ctx.respond("You are not the owner of this bot!")
-        return
     db = await aiosqlite.connect("bot.db")
     await db.execute("INSERT INTO bans (id, reason) VALUES (?, ?)", (user.id, reason))
     await db.commit()
@@ -167,12 +221,9 @@ async def ban(ctx: discord.ApplicationContext, user: discord.User, reason: str):
 
 
 @client.slash_command(debug_guilds=[910733698452815912])
+@commands.check(check_owner)
 async def unban(ctx: discord.ApplicationContext, user: discord.User):
     """Appeals actually working??????"""
-    if not await client.is_owner(ctx.author):
-        print(client.owner_ids)
-        await ctx.respond("You are not the owner of this bot!")
-        return
     db = await aiosqlite.connect("bot.db")
     await db.execute("DELETE FROM bans WHERE id=?", (user.id,))
     await db.commit()
@@ -180,5 +231,28 @@ async def unban(ctx: discord.ApplicationContext, user: discord.User):
     await ctx.respond(f"Unbanned {user.mention}")
 
 
-client.run(os.getenv("BOT_TOKEN"))
+@client.slash_command(debug_guilds=[910733698452815912])
+@commands.check(check_owner)
+async def purge(ctx: discord.ApplicationContext):
+    """Purges docker containers"""
+    await ctx.defer()
+    proc = await asyncio.subprocess.create_subprocess_exec(
+        "docker",
+        "container",
+        "prune",
+        "-f",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    await ctx.respond(
+        f"Docker purge results:",
+        files=[
+            str_to_discord_file(
+                (stdout or b"").decode() + (stderr or b"").decode(), "purge-log.txt"
+            )
+        ],
+    )
 
+
+client.run(os.getenv("BOT_TOKEN"))

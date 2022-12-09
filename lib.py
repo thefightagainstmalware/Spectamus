@@ -1,4 +1,4 @@
-from __future__ import annotations 
+from __future__ import annotations
 import tarfile, base64, os, asyncio, aiodocker, tempfile, aiohttp, dockerlib, traceback, tempfile
 from typing import Tuple, Union, IO, TYPE_CHECKING
 
@@ -49,7 +49,7 @@ async def upload(filepath: str) -> str:
             filepath,
         ],
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
+        stderr=asyncio.subprocess.PIPE,
     )
     stdout, stderr = await proc.communicate()
     out = (stdout or b"") + (stderr or b"")

@@ -22,7 +22,7 @@ If you get problems with DNS not resolving within a Spectamus container, change 
 10. Fill your .env file with the proper data
 ```env
 BOT_TOKEN=<discord bot token, get it at discord.com/developers>
-VPN_ASN=<optional, enforces that a you're connected to the VPN by checking the ASN>
+VPN_ASN=<optional, enforces that a you are connected to the VPN by checking the ASN>
 LOGGING_CHANNEL_ID=<optional, logs the jars to prevent abuse, put the channel id>
 ```
 11. Run the bot with `python bot.py`

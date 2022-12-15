@@ -4,7 +4,7 @@ An instance is running with id: 1020734729554759750 and [this invite url](https:
 ## Running locally
 You need 
 - [Docker](https://docs.docker.com/get-docker/)
-- Python >= 3.7
+- Python >= 3.8
 - 1.8.9 Minecraft json
 - Proper .mitmproxy folder
 - Requirements.txt dependencies
